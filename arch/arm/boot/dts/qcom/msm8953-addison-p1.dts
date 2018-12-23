@@ -1,0 +1,108 @@
+/* Copyright (c) 2015, Motorola Mobility Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+
+#include "msm8953-addison.dtsi"
+
+
+/ {
+	qcom,board-id = <0x41 0x8100>;
+};
+
+&cdc_1p2_en_default {
+	mux {
+		pins = "gpio130";
+	};
+
+	config {
+		pins = "gpio130";
+	};
+};
+
+&cdc_1p2v {
+	/delete-property/ gpio;
+	gpio = <&tlmm 130 0>;
+};
+
+
+&marley {
+	CPVDD2-supply = <&cdc_1p2v>;
+	DCVDD-supply = <&cdc_1p2v>;
+};
+
+&soc {
+	apba_ctrl {
+		gpios = <&tlmm 39 2>,      /* APBA_1P1_EN, output-high */
+			<&tlmm 140 0>,     /* APBA_BOOTRET, output-low */
+			<&pmi8950_mpps 2 2>, /* MOD_MPHY_I2S_SEL, output-high */
+			<&tlmm 132 0>,     /* APBA_RESET_N, output-low */
+			<&tlmm 62 1>,      /* APBA_INT_N, in */
+			<&tlmm 141 2>,     /* APBA_WAKE, output-high */
+			<&tlmm 48 2>;      /* APBA_SFLASH_EN, output-high */
+	};
+
+	hd3ss460 {
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+		/delete-property/ pinctrl-1;
+		gpios = <&pm8953_gpios 7 0>, /* USB_SS_MOD_EN, output-low */
+			<&pm8953_gpios 2 0>, /* USB_SS_SW_SEL, output-low */
+			<&pm8953_gpios 8 0>; /* USB_SS_MOD_MPHY_AP_EN, output-low */
+	};
+
+	/delete-node/ usb_otg_switch;
+
+	usb3 {
+		vbus_dwc3-supply = <&smbcharger_charger_otg>;
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+		/delete-property/ qcom,otg-fault-gpio;
+	};
+};
+
+&tlmm {
+	apba_default: apba_default@0 {
+		apba_sflash_en {
+			pins = "gpio48";
+		};
+	};
+};
+
+&pm8953_gpios {
+	gpio@c100 { /* GPIO 2 - USB_SS_SW_SEL */
+		qcom,mode = <1>;		/* Digital Output */
+		qcom,pull = <5>;		/* No pull  */
+		qcom,vin-sel = <2>;		/* VIN0 */
+		qcom,src-sel = <0>;		/* GPIO */
+		qcom,master-en = <1>;		/* Enable GPIO */
+		status = "okay";
+	};
+};
+
+&i2c_4 {
+	motosh@43 {                /* Sensor Hub */
+		mag_orient =  <3>; /* Mag Orientation value */
+		mag_config =  <0>; /* Magnetometer config value */
+	};
+};
+
+&i2c_2 {
+	analogix_anx7805@72{
+		status = "disabled";
+	};
+};
+
+&pmi8950_charger {
+	/delete-node/ smbcharger_external_otg;
+};

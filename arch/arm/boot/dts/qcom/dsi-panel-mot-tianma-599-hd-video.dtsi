@@ -1,0 +1,44 @@
+/* Copyright (c) 2016, Motorola Mobility LLC. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&mdss_mdp {
+	mot_tianma_599_hd_vid_v0: qcom,mdss_dsi_mot_tianma_599_hd_video_v0 {
+		#include "dsi-panel-mot-tianma-599-hd-video-common.dtsi"
+	};
+	mot_tianma_599_hd_ex_vid_v0: qcom,mdss_dsi_mot_tianma_599_hd_ex_video_v0 {
+		#include "dsi-panel-mot-tianma-599-hd-video-common.dtsi"
+	};
+};
+
+&mot_tianma_599_hd_vid_v0 {
+	qcom,mdss-dsi-h-front-porch = <364>;
+	qcom,mdss-dsi-h-back-porch = <40>;
+	qcom,mdss-dsi-h-pulse-width = <20>;
+	qcom,mdss-dsi-v-back-porch = <8>;
+	qcom,mdss-dsi-v-front-porch = <10>;
+	qcom,mdss-dsi-v-pulse-width = <2>;
+	qcom,mdss-dsi-panel-timings = [A9 26 18 00 4E 52 1C 2A 1D 03 04 00];
+	qcom,mdss-dsi-t-clk-post = <0x04>;
+	qcom,mdss-dsi-t-clk-pre = <0x21>;
+};
+
+&mot_tianma_599_hd_ex_vid_v0 {
+	qcom,mdss-dsi-h-front-porch = <312>;
+	qcom,mdss-dsi-h-back-porch = <24>;
+	qcom,mdss-dsi-h-pulse-width = <20>;
+	qcom,mdss-dsi-v-back-porch = <8>;
+	qcom,mdss-dsi-v-front-porch = <10>;
+	qcom,mdss-dsi-v-pulse-width = <2>;
+	qcom,mdss-dsi-panel-timings = [9B 22 18 00 4A 4E 1C 26 1B 03 04 00];
+	qcom,mdss-dsi-t-clk-post = <0x04>;
+	qcom,mdss-dsi-t-clk-pre = <0x1f>;
+};

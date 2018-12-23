@@ -1,0 +1,221 @@
+/* Copyright (c) 2016, Motorola Mobility Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+
+#include "sdm450-ali.dtsi"
+
+
+/ {
+	qcom,board-id = <0x41 0xA100>;
+	compatible = "qcom,sdm450-ali", "qcom,sdm450-moto",
+			"qcom,sdm450";
+	qcom,msm-id = <338 0x0>;
+	interrupt-parent = <&intc>;
+};
+
+&clock_gcc_gfx {
+	compatible = "qcom,gcc-gfx-sdm450";
+	qcom,gfxfreq-corner =
+		<         0   0 >,
+		< 133330000   1 >,  /* Min SVS   */
+		< 216000000   2 >,  /* Low SVS   */
+		< 320000000   3 >,  /* SVS       */
+		< 400000000   4 >,  /* SVS Plus  */
+		< 510000000   5 >,  /* NOM       */
+		< 560000000   6 >,  /* Nom Plus  */
+		< 600000000   7 >;  /* Turbo     */
+};
+
+/* camera override for EVB */
+&cci {
+	eeprom1: qcom,eeprom@1 {
+		cam_vdig-supply = <&pm8953_l23>;
+	};
+
+	eeprom2: qcom,eeprom@2 {
+		cam_vdig-supply = <&pm8953_l23>;
+	};
+
+	eeprom3: qcom,eeprom@3 {
+		cam_vdig-supply = <&pm8953_l23>;
+		qcom,cam-vreg-min-voltage = <1800000 1200000>;
+		qcom,cam-vreg-max-voltage = <1800000 1200000>;
+	};
+
+	/* OV5675 REAR */
+	qcom,camera@1 {
+		cam_vdig-supply = <&pm8953_l23>;
+	};
+
+	/* S5K4H7 */
+	qcom,camera@2 {
+		cam_vdig-supply = <&pm8953_l23>;
+	};
+
+	/* S5K3P8SP */
+	qcom,camera@3 {
+		cam_vdig-supply = <&pm8953_l23>;
+		qcom,cam-vreg-min-voltage = <1800000 1200000>;
+		qcom,cam-vreg-max-voltage = <1800000 1200000>;
+	};
+};
+
+&rpm_bus {
+	rpm-regulator-ldoa23 {
+		status = "okay";
+		pm8953_l23: regulator-l23 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			qcom,init-voltage = <1200000>;
+			status = "okay";
+		};
+	};
+};
+
+&soc {
+	i2c_1: i2c@78b5000 {
+		/delete-node/ fusb302@22;
+	};
+
+	i2c_5: i2c@7af5000 { /* BLSP2 QUP1 */
+		status = "okay";
+		compatible = "qcom,i2c-msm-v2";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr";
+		reg = <0x7af5000 0x600>;
+		interrupt-names = "qup_irq";
+		interrupts = <0 299 0>;
+		qcom,clk-freq-out = <400000>;
+		qcom,clk-freq-in  = <19200000>;
+		clock-names = "iface_clk", "core_clk";
+		clocks = <&clock_gcc clk_gcc_blsp2_ahb_clk>,
+			<&clock_gcc clk_gcc_blsp2_qup1_i2c_apps_clk>;
+
+		pinctrl-names = "i2c_active", "i2c_sleep";
+		pinctrl-0 = <&i2c_5_active>;
+		pinctrl-1 = <&i2c_5_sleep>;
+		qcom,noise-rjct-scl = <0>;
+		qcom,noise-rjct-sda = <0>;
+		qcom,master-id = <84>;
+		dmas = <&dma_blsp2 4 64 0x20000020 0x20>,
+			<&dma_blsp2 5 32 0x20000020 0x20>;
+		dma-names = "tx", "rx";
+
+		fusb302@22 {
+			compatible = "fairchild,fusb302";
+			reg = <0x22>;
+			gpios = <&tlmm 9 1>; /* FUSB302_INT_N, in */
+			fusb,gpio-labels = "gpio_fusb_int_n";
+			pinctrl-names = "default", "active";
+			pinctrl-0 = <&fusb302_int_default>;
+			pinctrl-1 = <&fusb302_int_active>;
+		};
+	};
+
+	fpc_fpc1020{
+		pinctrl-0 = <&int_active &rst_active>;
+		pinctrl-1 = <&int_suspend &rst_suspend>;
+	};
+};
+
+/* GPU Overrides*/
+&msm_gpu {
+
+	/delete-node/qcom,gpu-pwrlevels;
+
+	qcom,gpu-pwrlevels {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		compatible = "qcom,gpu-pwrlevels";
+
+		/* TURBO */
+		qcom,gpu-pwrlevel@0 {
+			reg = <0>;
+			qcom,gpu-freq = <600000000>;
+			qcom,bus-freq = <10>;
+			qcom,bus-min = <10>;
+			qcom,bus-max = <10>;
+		};
+
+		/* NOM+ */
+		qcom,gpu-pwrlevel@1 {
+			reg = <1>;
+			qcom,gpu-freq = <560000000>;
+			qcom,bus-freq = <10>;
+			qcom,bus-min = <8>;
+			qcom,bus-max = <10>;
+		};
+
+		/* NOM */
+		qcom,gpu-pwrlevel@2 {
+			reg = <2>;
+			qcom,gpu-freq = <510000000>;
+			qcom,bus-freq = <9>;
+			qcom,bus-min = <6>;
+			qcom,bus-max = <10>;
+		};
+
+		/* SVS+ */
+		qcom,gpu-pwrlevel@3 {
+			reg = <3>;
+			qcom,gpu-freq = <400000000>;
+			qcom,bus-freq = <7>;
+			qcom,bus-min = <5>;
+			qcom,bus-max = <8>;
+		};
+
+		/* SVS */
+		qcom,gpu-pwrlevel@4 {
+			reg = <4>;
+			qcom,gpu-freq = <320000000>;
+			qcom,bus-freq = <4>;
+			qcom,bus-min = <2>;
+			qcom,bus-max = <6>;
+		};
+
+		/* Low SVS */
+		qcom,gpu-pwrlevel@5 {
+			reg = <5>;
+			qcom,gpu-freq = <216000000>;
+			qcom,bus-freq = <1>;
+			qcom,bus-min = <1>;
+			qcom,bus-max = <4>;
+		};
+
+		/* Min SVS */
+		qcom,gpu-pwrlevel@6 {
+			reg = <6>;
+			qcom,gpu-freq = <133300000>;
+			qcom,bus-freq = <1>;
+			qcom,bus-min = <1>;
+			qcom,bus-max = <4>;
+		};
+		/* XO */
+		qcom,gpu-pwrlevel@7 {
+			reg = <7>;
+			qcom,gpu-freq = <19200000>;
+			qcom,bus-freq = <0>;
+			qcom,bus-min = <0>;
+		};
+	};
+};
+
+&i2c_3 { /* BLSP1 QUP3 */
+	focaltech_ts@38 {
+		focaltech,x-flip;
+		focaltech,y-flip;
+	};
+};

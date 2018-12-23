@@ -1,0 +1,73 @@
+/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&mdss_mdp {
+	mot_smd_546_QHD_p_cmd_v2: qcom,mdss_dsi_mot_smd_546_QHD_p_cmd_v2 {
+		#include "dsi-panel-mot-smd-546-QHD-p-cmd-common.dtsi"
+	};
+
+	mot_smd_546_QHD_p_cmd_v1: qcom,mdss_dsi_mot_smd_546_QHD_p_cmd_v1 {
+		#include "dsi-panel-mot-smd-546-QHD-p-cmd-common.dtsi"
+	};
+
+	mot_smd_546_QHD_p_cmd_v0: qcom,mdss_dsi_mot_smd_546_QHD_p_cmd_v0 {
+		#include "dsi-panel-mot-smd-546-QHD-p-cmd-common.dtsi"
+	};
+
+	dsc_cfg_mot_smd_546_QHD_p_cmd: dsc_cfg_mot_smd_546_QHD_p_cmd_cfg {
+		qcom,lm-split = <720 720>;
+		qcom,mdss-dsc-encoders = <2>;
+		qcom,mdss-dsc-slice-height = <64>;
+		qcom,mdss-dsc-slice-width = <360>;
+		qcom,mdss-dsc-slice-per-pkt = <1>;
+		qcom,mdss-dsc-bit-per-component = <8>;
+		qcom,mdss-dsc-bit-per-pixel = <8>;
+		qcom,mdss-dsc-block-prediction-enable;
+	};
+};
+
+&mot_smd_546_QHD_p_cmd_v0 {
+	/* HBM doesn't work on older HW */
+	/delete-property/ qcom,mdss-dsi-hbm-on-command;
+	/delete-property/ qcom,mdss-dsi-hbm-off-command;
+	qcom,mdss-dsi-on-command = [
+		39 00 00 00 00 00 03 F0 5A 5A
+		39 00 00 00 00 00 03 FC 5A 5A
+		07 00 00 00 00 00 01 01
+		05 01 00 00 78 00 01 11
+		15 00 00 00 00 00 02 E6 01
+		15 00 00 00 00 00 02 35 00
+		39 00 00 00 00 00 11 B1 10 03 10 10 10 80 40
+			48 20 01 02 12 24 48 7F FF
+		15 00 00 00 00 00 02 53 20
+		15 00 00 00 00 00 02 51 00
+		15 00 00 00 00 00 02 55 00
+		05 01 00 00 00 00 01 29
+	];
+};
+
+&mot_smd_546_QHD_p_cmd_v1 {
+	qcom,mdss-dsi-on-command = [
+		39 00 00 00 00 00 03 F0 5A 5A
+		39 00 00 00 00 00 03 FC 5A 5A
+		07 00 00 00 00 00 01 01
+		05 01 00 00 78 00 01 11
+		15 00 00 00 00 00 02 E6 01
+		15 00 00 00 00 00 02 35 00
+		39 00 00 00 00 00 11 B1 10 03 10 10 10 80 40
+			48 20 01 02 12 24 48 7F FF
+		15 00 00 00 00 00 02 53 20
+		15 00 00 00 00 00 02 51 00
+		15 00 00 00 00 00 02 55 00
+		05 01 00 00 00 00 01 29
+	];
+};

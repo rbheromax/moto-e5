@@ -1,0 +1,156 @@
+/* Copyright (c) 2015, Motorola Mobility Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+
+/dts-v1/;
+
+#include "msm8996-princeton.dtsi"
+
+/ {
+	qcom,board-id = <0x41 0x8100>;
+};
+
+&tlmm {
+	apba_default@0 {
+		apba_reset_n {
+			pins = "gpio131";
+		};
+
+		apba_int_n {
+			pins = "gpio132";
+		};
+
+	};
+};
+
+&pcie1 {
+	status = "disabled";
+};
+
+&soc {
+	apba_ctrl {
+		gpios = <&pm8994_gpios 7 2>, /* APBA_1P1_EN, output-high */
+			<&pm8994_gpios 1 2>, /* APBA_SFLASH_EN, output-high */
+			<&tlmm 27 0>,        /* APBA_BOOTRET, output-low */
+			<&pm8994_mpps 2 0>,  /* MOD_MPHY_I2S_EN_N, output-low */
+			<&tlmm 81 2>,        /* MOD_MPHY_I2S_SEL, output-high */
+			<&tlmm 131 0>,       /* APBA_RESET_N, output-low */
+			<&tlmm 132 1>,       /* APBA_INT_N, in */
+			<&tlmm 25 2>;        /* APBA_WAKE, output-high */
+		mmi,gpio-labels = "gpio_apba_1p1_en",
+				  "gpio_apba_sflash_en",
+				  "gpio_apba_bootret",
+				  "gpio_mphy_i2s_en_n",
+				  "gpio_mphy_i2s_sel",
+				  "gpio_apba_rst_n",
+				  "gpio_apba_int_n",
+				  "gpio_apba_wake";
+		mmi,int-index = <6>;
+		/* This sequence seems old, don't suggest using it. */
+		mmi,enable-preclk-seq = <7 1 0>, <0 1 0>, <1 0 0>, <2 0 0>,
+					<3 0 0>, <4 0 0>, <5 0 50>;
+		mmi,enable-postclk-seq = <5 1 50>;
+		mmi,disable-seq = <1 1 0>, <2 0 0>, <3 0 0>, <4 1 0>, <5 0 50>,
+				  <7 0 0>, <0 0 0>;
+		mmi,wake-seq = <7 0 50>, <7 1 0>;
+	};
+};
+
+&spi_3 {
+	/delete-node/ m25p80@0;
+};
+
+&spi_0 {
+	pinctrl-0 = <&spi_0_active &princeton_p1_spi_0_cs2_active>;
+	pinctrl-1 = <&spi_0_sleep &princeton_p1_spi_0_cs2_sleep>;
+
+	apba_flash: m25p80@2 {
+		compatible = "w25q40bw";
+		reg = <2>; /* BLSP1_SPI_CS2B_N */
+		spi-max-frequency = <4800000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0 {
+			label = "apbaboot";
+			reg = <0x0 0x4000>;
+		};
+		partition@1 {
+			label = "apba";
+			reg = <0x4000 0x44000>;
+		};
+	};
+};
+
+&muc {
+	gpios = <&tlmm  73 1>,   /* gpio_muc_det_n,    input */
+		<&tlmm 130 0>,   /* gpio_muc_bplus_en, output-low */
+		<&tlmm  34 1>,   /* gpio_muc_int_n,    input */
+		<&tlmm  74 2>,   /* gpio_muc_wake_n,   output-high */
+		<&tlmm  82 1>,   /* gpio_muc_rdy_n,    input */
+		<0>,             /* gpio_muc_ff,       not used */
+		<&tlmm 0 0>,     /* gpio_muc_spi_mosi, output-low */
+		<&tlmm 1 1>,     /* gpio_muc_spi_miso, input */
+		<0>,            /* gpio_muc_bplus_iset, cs */
+		<0>,            /* gpio_muc_bplus_discharg, cs */
+		<0>,            /* gpio_muc_bplus_fault_n, unused */
+		<&tlmm 3 1>;    /* gpio_muc_clk,      input */
+
+	mmi,muc-ctrl-en-seq =  <1 1 100>;
+	mmi,muc-ctrl-dis-seq = <1 0 505>;
+};
+
+&muc_attach {
+	config {
+		pins = "gpio130", "gpio34";
+		bias-disable;
+	};
+};
+
+&spmi_bus {
+	qcom,pm8994@0 {
+		/delete-node/ qcom,leds@a500;
+		qcom,leds@a600 {
+			compatible = "qcom,leds-qpnp";
+			reg = <0xa600 0x100>;
+			status = "okay";
+			label = "mpp";
+			qcom,led_mpp_7 {
+				label = "mpp";
+				linux,name = "charging";
+				linux-default-trigger = "none";
+				qcom,default-state = "off";
+				qcom,max-current = <10>;
+				qcom,current-setting = <5>;
+				qcom,id = <6>;
+				qcom,source-sel = <1>;
+				qcom,mode-ctrl = <0x60>;
+				qcom,mode = "manual";
+			};
+		};
+	};
+};
+
+&pm8994_mpps {
+	mpp@a500 { /* MPP 6 Not used */
+		status = "disabled";
+	};
+
+	mpp@a600 { /* MPP 7 - SOL or CHARGING LED */
+		status = "okay";
+		qcom,mode = <6>;	/* QPNP_PIN_MODE_SINK */
+	};
+};
+
+&i2c_7 {
+	/delete-node/ fusb302@22;
+};

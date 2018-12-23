@@ -1,0 +1,208 @@
+/* Copyright (c) 2015, Motorola Mobility Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+
+/dts-v1/;
+
+#include "msm8996-sheridan.dtsi"
+
+/ {
+	qcom,board-id = <0x43 0x81A0>;
+};
+
+&soc {
+	apba_ctrl {
+		gpios = <&pm8994_gpios 7 0>, /* APBA_1P1_EN, output-low */
+			<&tlmm 27 0>,        /* APBA_BOOTRET, output-low */
+			<&pm8994_mpps 2 0>,  /* MOD_MPHY_I2S_EN_N, output-low */
+			<&tlmm 81 2>,        /* MOD_MPHY_I2S_SEL, output-high */
+			<&tlmm 36 0>,       /* APBA_RESET_N, output-low */
+			<&tlmm 37 1>,       /* APBA_INT_N, in */
+			<&tlmm 25 0>;        /* APBA_WAKE, output-low */
+		mmi,gpio-labels = "gpio_apba_1p1_en",
+				  "gpio_apba_bootret",
+				  "gpio_mphy_i2s_en_n",
+				  "gpio_mphy_i2s_sel",
+				  "gpio_apba_rst_n",
+				  "gpio_apba_int_n",
+				  "gpio_apba_wake";
+		mmi,int-index = <5>;
+		mmi,enable-preclk-seq = <4 0 0>, <6 1 0>, <0 1 0>, <1 0 0>,
+					<2 0 0>, <3 0 1>;
+		mmi,enable-postclk-seq = <4 1 0>;
+		mmi,disable-seq = <1 0 0>, <2 0 0>, <3 1 0>, <4 0 1>, <6 0 0>,
+				  <0 0 0>;
+		mmi,wake-assert-seq = <6 0 0>;
+		mmi,wake-deassert-seq = <6 1 0>;
+	};
+
+	hd3ss460 {
+		hd3-is-fusb340;
+	};
+
+	sound {
+		mot,old-l34;
+	};
+
+	/* SensorHub Bus */
+	i2c@7579000 {
+		motosh@43 {
+			mag_config = <2>;     /* Magnetometer config value */
+			mag_orient = <2>;     /* Mag Orientation value */
+		};
+	};
+};
+
+&spi_0 {
+	muc_spi: muc_spi@0 {
+		interrupts = <26 0>;
+	};
+};
+
+&pm8994_gpios {
+	gpio@cb00 { /* GPIO 12 - AP_VIB_EN */
+		qcom,mode = <1>;         /* Digital output*/
+		qcom,vin-sel = <2>;      /* VIN2 */
+		qcom,src-sel = <0>;      /* GPIO */
+		qcom,master-en = <1>;    /* Enable GPIO */
+		status = "okay";
+	};
+};
+
+&drv2605 {
+	gpios = <&pm8994_gpios 12 0>;   /* EN_GPIO */
+};
+
+&pmi8994_gpios {
+	/delete-node/ gpio@c900;
+	gpio@c900 {
+		reg = <0xc900 0x100>;
+		qcom,pin-num = <10>;
+		status = "disabled";
+	};
+};
+
+&tlmm {
+	apba_default@0 {
+		apba_wake {
+			pins = "gpio25";
+		};
+	};
+};
+
+&cci {
+	st,stmvl53l0 {
+		cell-index = <1>;
+		compatible = "st,stmvl53l0";
+		qcom,cci-master = <0>;
+		cam_vio-supply = <&pm8994_lvs1>;
+		cam_vaf-supply = <&pm8994_l23>;
+		qcom,cam-vreg-name = "cam_vio", "cam_vaf";
+		qcom,cam-vreg-min-voltage = <0 1850000>;
+		qcom,cam-vreg-max-voltage = <0 1850000>;
+		qcom,cam-vreg-op-mode = <0 100000>;
+		gpios =<&pm8994_gpios 10 0>,
+			  <&tlmm 119 0>;
+		qcom,gpio-reset = <0>;
+		qcom,gpio-req-tbl-num = <0 1>;
+		qcom,gpio-req-tbl-flags = <0 1>;
+		qcom,gpio-req-tbl-label = "TOF_XSHUTDOWN","TOF_INT";
+		pinctrl-names = "laser_default", "laser_suspend";
+		pinctrl-0 = <&laser_active>;
+		pinctrl-1 = <&laser_suspend>;
+	};
+};
+
+&i2c_7 {
+	cs35l34@41 {
+		reg = <0x40>;
+	};
+
+	analogix_anx78e6@72 {
+		status = "disabled";
+	};
+
+	/delete-node/ stmvl53l0@29;
+	/delete-node/ usb3813@2D;
+};
+
+&muc {
+	gpios = <&tlmm 73 1>,   /* gpio_muc_det_n,    input */
+		<&tlmm 35 0>,   /* gpio_muc_bplus_en, output-low */
+		<&tlmm 26 1>,   /* gpio_muc_int_n,    input */
+		<&tlmm 74 2>,   /* gpio_muc_wake_n,   output-high */
+		<&tlmm 82 1>,   /* gpio_muc_rdy_n,    input */
+		<0>,            /* gpio_muc_ff,       not used */
+		<&tlmm 0 0>,    /* gpio_muc_spi_mosi, output-low */
+		<&tlmm 1 1>,    /* gpio_muc_spi_miso, input */
+		<0>,            /* gpio_muc_bplus_iset, cs */
+		<0>,            /* gpio_muc_bplus_discharg, cs */
+		<0>,            /* gpio_muc_bplus_fault_n, unused */
+		<&tlmm 3 1>;    /* gpio_muc_clk,      input */
+
+	mmi,muc-ctrl-en-seq =  <1 1 100>;
+	mmi,muc-ctrl-dis-seq = <1 0 505>;
+
+	/* v1 CC first, BPLUS second on enable */
+	mmi,muc-ctrl-ff-seq-v1 = <0 0 20>, <1 0 100>,
+				<0 1 20>, <1 1 100>,
+				<0 0 20>;
+
+	/* v2 BPLUS first, v2 CC second on enable */
+	mmi,muc-ctrl-ff-seq-v2 = <0 0 100>, <1 0 20>,
+				<1 1 100>, <0 1 20>,
+				<0 0 20>;
+
+	mmi,muc-det-pin-reconfig;
+};
+
+&muc_spi_ctrl {
+	config {
+		pins = "gpio26", "gpio74", "gpio82";
+		bias-disable;
+	};
+};
+
+&muc_attach {
+	config {
+		pins = "gpio35", "gpio34";
+		bias-disable;
+	};
+};
+
+&mdss_hdmi_hpd_active {
+	mux {
+		pins = "gpio79";
+	};
+
+	config {
+		pins = "gpio79";
+	};
+};
+
+&mdss_hdmi_hpd_suspend {
+	mux {
+		pins = "gpio79";
+	};
+
+	config {
+		pins = "gpio79";
+	};
+};
+
+&mdss_hdmi_tx {
+	qcom,hdmi-tx-hpd = <&tlmm 79 0>;
+};
+
+&muc_svc {
+	mmi,default-root-ver = /bits/ 8 <1>;
+};

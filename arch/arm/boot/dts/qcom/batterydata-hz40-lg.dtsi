@@ -1,0 +1,54 @@
+
+qcom,hz40-lg {
+	serialnum = "SNN5983A";
+	qcom,step-chg-steps = <4200 3000 2000>,
+				<4400 2000 1600>;
+	qcom,stepchg-iterm-ma = <146>;
+	qcom,auto-voltage-comp-mv = <150>;
+	/* #2803973_Moto_HZ40lgc_3000mAh_averaged_MasterSlave_Feb22nd2017*/
+	qcom,max-voltage-uv = <4400000>;
+	qcom,nom-batt-capacity-mah = <3000>;
+	qcom,batt-id-kohm = <243>;
+	qcom,battery-beta = <3900>;
+	qcom,battery-type = "HZ40-LG-3000mah";
+	qcom,chg-rslow-comp-c1 = <3615241>;
+	qcom,chg-rslow-comp-c2 = <5747424>;
+	qcom,chg-rs-to-rslow = <1188586>;
+	qcom,chg-rslow-comp-thr = <0xAF>;
+	qcom,checksum = <0x5D6E>;
+	qcom,gui-version = "PMI8950GUI - 2.0.0.16";
+	qcom,fg-profile-data = [
+		 D5 83 6E 7C
+		 C7 80 C4 76
+		 70 83 24 7C
+		 0B 90 A7 96
+		 86 82 B9 92
+		 77 B4 EE BB
+		 52 19 FB 83
+		 3C 7D 3A 81
+		 66 77 5C 83
+		 75 53 F7 81
+		 EE 8D 73 82
+		 40 98 5E B6
+		 6A C2 58 11
+		 C4 0B 6E 5B
+		 14 70 43 FC
+		 09 2E 8D 4C
+		 52 43 00 00
+		 78 46 92 32
+		 3F 21 00 00
+		 00 00 00 00
+		 00 00 00 00
+		 BC 71 CB 6B
+		 EA 77 B6 88
+		 14 7D D9 71
+		 38 5F 99 7B
+		 1A 76 4A 68
+		 82 5C 51 A3
+		 32 60 62 EB
+		 5F A0 71 0C
+		 28 00 FF 36
+		 F0 11 30 03
+		 00 00 00 0C
+	];
+};

@@ -1,0 +1,47 @@
+/* Copyright (c) 2015, Motorola Mobility Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+
+#include "msm8953-addison.dtsi"
+
+
+/ {
+	qcom,board-id = <0x41 0x82a0>;
+};
+
+&soc {
+	sound {
+		mot,micdet1-high-imp;
+	};
+
+	/delete-node/ usb_otg_switch;
+
+	usb3 {
+		vbus_dwc3-supply = <&smbcharger_charger_otg>;
+		/delete-property/ pinctrl-names;
+		/delete-property/ pinctrl-0;
+		/delete-property/ qcom,otg-fault-gpio;
+	};
+};
+
+&i2c_4 {
+	motosh@43 {                /* Sensor Hub */
+		mag_orient =  <3>; /* Mag Orientation value */
+		mag_config =  <0>; /* Magnetometer config value */
+	};
+};
+
+&pmi8950_charger {
+	/delete-node/ smbcharger_external_otg;
+};
