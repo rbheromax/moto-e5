@@ -254,7 +254,7 @@ static void row_add_request(struct request_queue *q,
 
 	list_add_tail(&rq->queuelist, &rqueue->fifo);
 	rd->nr_reqs[rq_data_dir(rq)]++;
-	rq_set_fifo_time(rq, jiffies); /* for statistics*/
+	// rq_set_fifo_time(rq, jiffies); /* for statistics*/
 
 	if (queue_idling_enabled[rqueue->prio]) {
 		if (delayed_work_pending(&rd->read_idle.idle_work))
