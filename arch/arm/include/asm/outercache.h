@@ -46,6 +46,7 @@ extern struct outer_cache_fns outer_cache;
  * @start: starting physical address, inclusive
  * @end: end physical address, exclusive
  */
+
 static inline void outer_inv_range(phys_addr_t start, phys_addr_t end)
 {
 	if (outer_cache.inv_range)
