@@ -1295,6 +1295,8 @@ endmenu
 
 source "arch/arm/common/Kconfig"
 
+source "arch/arm/fastcharge/Kconfig"
+
 menu "Bus support"
 
 config ARM_AMBA
