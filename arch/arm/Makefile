@@ -227,6 +227,8 @@ plat-$(CONFIG_PLAT_PXA)		+= pxa
 plat-$(CONFIG_PLAT_S3C24XX)	+= samsung
 plat-$(CONFIG_PLAT_VERSATILE)	+= versatile
 
+obj-$(CONFIG_FORCE_FAST_CHARGE) += fastcharge
+
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.
 # PCMCIA cards stop working.
