@@ -180,7 +180,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 	curseg = CURSEG_I(sbi, CURSEG_WARM_NODE);
 	blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 
-	ra_meta_pages(sbi, blkaddr, 1, META_POR, true);
+	ra_meta_pages(sbi, blkaddr, 1, META_POR);
 
 	while (1) {
 		struct fsync_inode_entry *entry;
@@ -188,7 +188,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 		if (!is_valid_blkaddr(sbi, blkaddr, META_POR))
 			return 0;
 
-		page = get_tmp_page(sbi, blkaddr);
+		page = get_meta_page(sbi, blkaddr);
 
 		if (cp_ver != cpver_of_node(page))
 			break;
@@ -480,7 +480,7 @@ static int recover_data(struct f2fs_sb_info *sbi,
 
 		ra_meta_pages_cond(sbi, blkaddr);
 
-		page = get_tmp_page(sbi, blkaddr);
+		page = get_meta_page(sbi, blkaddr);
 
 		if (cp_ver != cpver_of_node(page)) {
 			f2fs_put_page(page, 1);
@@ -568,8 +568,8 @@ out:
 			(loff_t)MAIN_BLKADDR(sbi) << PAGE_CACHE_SHIFT, -1);
 
 	if (err) {
-		truncate_inode_pages_final(NODE_MAPPING(sbi));
-		truncate_inode_pages_final(META_MAPPING(sbi));
+		truncate_inode_pages(NODE_MAPPING(sbi), 0);
+		truncate_inode_pages(META_MAPPING(sbi), 0);
 	}
 
 	clear_sbi_flag(sbi, SBI_POR_DOING);

@@ -620,7 +620,7 @@ unsigned int f2fs_shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink)
 			write_unlock(&et->lock);
 
 			if (node_cnt + tree_cnt >= nr_shrink)
-				goto unlock_out;
+				break;
 		}
 	}
 unlock_out:

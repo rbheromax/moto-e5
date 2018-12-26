@@ -9,7 +9,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/blkdev.h>
-#include <linux/backing-dev.h>
 
 /* constant macro */
 #define NULL_SEGNO			((unsigned int)(~0))
@@ -137,12 +136,10 @@ enum {
 /*
  * BG_GC means the background cleaning job.
  * FG_GC means the on-demand cleaning job.
- * FORCE_FG_GC means on-demand cleaning job in background.
  */
 enum {
 	BG_GC = 0,
-	FG_GC,
-	FORCE_FG_GC,
+	FG_GC
 };
 
 /* for a function parameter to select a victim segment */
@@ -696,12 +693,10 @@ static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
  */
 static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)
 {
-	if (sbi->sb->s_bdi->wb.dirty_exceeded)
+	if (sbi->sb->s_bdi->dirty_exceeded)
 		return 0;
 
-	if (type == DATA)
-		return sbi->blocks_per_seg;
-	else if (type == NODE)
+	if (type == NODE)
 		return 3 * sbi->blocks_per_seg;
 	else if (type == META)
 		return MAX_BIO_BLOCKS(sbi);

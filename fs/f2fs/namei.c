@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/f2fs_fs.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
@@ -21,6 +22,77 @@
 #include "xattr.h"
 #include "acl.h"
 #include <trace/events/f2fs.h>
+
+/* dcache dops */
+static unsigned int __f2fs_striptail_len(unsigned int len, const char *name)
+{
+	while (len && name[len - 1] == '.')
+		len--;
+	return len;
+}
+
+static unsigned int f2fs_striptail_len(const struct qstr *qstr)
+{
+	return __f2fs_striptail_len(qstr->len, qstr->name);
+}
+
+static int f2fs_d_hash(const struct dentry *dentry, struct qstr *qstr)
+{
+	const unsigned char *name;
+	unsigned int len;
+	unsigned long hash;
+
+	name = qstr->name;
+	len = f2fs_striptail_len(qstr);
+
+	hash = init_name_hash();
+	while (len--)
+		hash = partial_name_hash(tolower(*name++), hash);
+	qstr->hash = end_name_hash(hash);
+
+	return 0;
+}
+
+static int f2fs_d_compare(const struct dentry *parent,
+			  const struct dentry *dentry, unsigned int len,
+			  const char *str, const struct qstr *name)
+{
+	unsigned int alen, blen;
+
+	/* A filename cannot end in '.' or we treat it like it has none */
+	alen = f2fs_striptail_len(name);
+	blen = __f2fs_striptail_len(len, str);
+	if (alen == blen) {
+		if (strncasecmp(name->name, str, alen) == 0)
+			return 0;
+	}
+	return 1;
+}
+
+const struct dentry_operations f2fs_dops = {
+	.d_hash		= f2fs_d_hash,
+	.d_compare	= f2fs_d_compare,
+};
+
+void f2fs_set_nocase_dop(struct inode *inode)
+{
+	struct dentry *dentry;
+
+	/* only dir can be set */
+	if (!S_ISDIR(inode->i_mode))
+		return;
+
+	/* dir inode have one alias at most */
+	dentry = d_find_alias(inode);
+
+	if (dentry) {
+		if (!dentry->d_op) {
+			shrink_dcache_parent(dentry);
+			d_set_d_op(dentry, &f2fs_dops);
+		}
+		dput(dentry);
+	}
+}
 
 static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 {
@@ -164,7 +236,7 @@ out:
 static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
-	struct inode *inode = d_inode(old_dentry);
+	struct inode *inode = old_dentry->d_inode;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	int err;
 
@@ -199,17 +271,17 @@ out:
 struct dentry *f2fs_get_parent(struct dentry *child)
 {
 	struct qstr dotdot = QSTR_INIT("..", 2);
-	unsigned long ino = f2fs_inode_by_name(d_inode(child), &dotdot);
+	unsigned long ino = f2fs_inode_by_name(child->d_inode, &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	return d_obtain_alias(f2fs_iget(d_inode(child)->i_sb, ino));
+	return d_obtain_alias(f2fs_iget(child->d_inode->i_sb, ino));
 }
 
 static int __recover_dot_dentries(struct inode *dir, nid_t pino)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct qstr dot = QSTR_INIT(".", 1);
-	struct qstr dotdot = QSTR_INIT("..", 2);
+	struct qstr dot = {.len = 1, .name = "."};
+	struct qstr dotdot = {.len = 2, .name = ".."};
 	struct f2fs_dir_entry *de;
 	struct page *page;
 	int err = 0;
@@ -255,6 +327,12 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	if (dentry->d_name.len > F2FS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
+	if (!dentry->d_op && dentry->d_parent && dentry->d_parent->d_op)
+		d_set_d_op(dentry, dentry->d_parent->d_op);
+
+	if (dentry->d_op)
+		flags |= LOOKUP_NOCASE;
+
 	de = f2fs_find_entry(dir, &dentry->d_name, &page, flags);
 	if (!de)
 		return d_splice_alias(inode, dentry);
@@ -272,6 +350,14 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 		if (err)
 			goto err_out;
 	}
+
+	if (S_ISDIR(inode->i_mode) && !dentry->d_op) {
+		err = f2fs_getxattr(inode, F2FS_XATTR_INDEX_USER,
+				    F2FS_XATTR_DIR_NOCASE, NULL, 0, NULL);
+		if (err > 0)
+			d_set_d_op(dentry, &f2fs_dops);
+	}
+
 	return d_splice_alias(inode, dentry);
 
 err_out:
@@ -282,7 +368,7 @@ err_out:
 static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = dentry->d_inode;
 	struct f2fs_dir_entry *de;
 	struct page *page;
 	int err = -ENOENT;
@@ -315,15 +401,19 @@ fail:
 	return err;
 }
 
-static const char *f2fs_follow_link(struct dentry *dentry, void **cookie)
+static void *f2fs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	const char *link = page_follow_link_light(dentry, cookie);
-	if (!IS_ERR(link) && !*link) {
-		/* this is broken symlink case */
-		page_put_link(NULL, *cookie);
-		link = ERR_PTR(-ENOENT);
+	struct page *page = page_follow_link_light(dentry, nd);
+
+	if (IS_ERR_OR_NULL(page))
+		return page;
+
+	/* this is broken symlink case */
+	if (*nd_get_link(nd) == 0) {
+		page_put_link(dentry, nd, page);
+		return ERR_PTR(-ENOENT);
 	}
-	return link;
+	return page;
 }
 
 static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
@@ -410,14 +500,11 @@ err_out:
 	 * If the symlink path is stored into inline_data, there is no
 	 * performance regression.
 	 */
-	if (!err) {
+	if (!err)
 		filemap_write_and_wait_range(inode->i_mapping, 0, p_len - 1);
 
-		if (IS_DIRSYNC(dir))
-			f2fs_sync_fs(sbi->sb, 1);
-	} else {
-		f2fs_unlink(dir, dentry);
-	}
+	if (IS_DIRSYNC(dir))
+		f2fs_sync_fs(sbi->sb, 1);
 
 	kfree(sd);
 	f2fs_fname_crypto_free_buffer(&disk_link);
@@ -468,7 +555,7 @@ out_fail:
 
 static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = dentry->d_inode;
 	if (f2fs_empty_dir(inode))
 		return f2fs_unlink(dir, dentry);
 	return -ENOTEMPTY;
@@ -480,6 +567,9 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
 	int err = 0;
+
+	if (!new_valid_dev(rdev))
+		return -EINVAL;
 
 	f2fs_balance_fs(sbi);
 
@@ -587,8 +677,8 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			unsigned int flags)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
-	struct inode *old_inode = d_inode(old_dentry);
-	struct inode *new_inode = d_inode(new_dentry);
+	struct inode *old_inode = old_dentry->d_inode;
+	struct inode *new_inode = new_dentry->d_inode;
 	struct inode *whiteout = NULL;
 	struct page *old_dir_page;
 	struct page *old_page, *new_page = NULL;
@@ -746,8 +836,8 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
-	struct inode *old_inode = d_inode(old_dentry);
-	struct inode *new_inode = d_inode(new_dentry);
+	struct inode *old_inode = old_dentry->d_inode;
+	struct inode *new_inode = new_dentry->d_inode;
 	struct page *old_dir_page, *new_dir_page;
 	struct page *old_page, *new_page;
 	struct f2fs_dir_entry *old_dir_entry = NULL, *new_dir_entry = NULL;
@@ -923,13 +1013,14 @@ static int f2fs_rename2(struct inode *old_dir, struct dentry *old_dentry,
 }
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
-static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cookie)
+static void *f2fs_encrypted_follow_link(struct dentry *dentry,
+						struct nameidata *nd)
 {
 	struct page *cpage = NULL;
 	char *caddr, *paddr = NULL;
 	struct f2fs_str cstr;
 	struct f2fs_str pstr = FSTR_INIT(NULL, 0);
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode = dentry->d_inode;
 	struct f2fs_encrypted_symlink_data *sd;
 	loff_t size = min_t(loff_t, i_size_read(inode), PAGE_SIZE - 1);
 	u32 max_size = inode->i_sb->s_blocksize;
@@ -941,7 +1032,7 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 
 	cpage = read_mapping_page(inode->i_mapping, 0, NULL);
 	if (IS_ERR(cpage))
-		return ERR_CAST(cpage);
+		return cpage;
 	caddr = kmap(cpage);
 	caddr[size] = 0;
 
@@ -981,10 +1072,11 @@ static const char *f2fs_encrypted_follow_link(struct dentry *dentry, void **cook
 
 	/* Null-terminate the name */
 	paddr[res] = '\0';
+	nd_set_link(nd, paddr);
 
 	kunmap(cpage);
 	page_cache_release(cpage);
-	return *cookie = paddr;
+	return NULL;
 errout:
 	kfree(cstr.name);
 	f2fs_fname_crypto_free_buffer(&pstr);
@@ -993,10 +1085,18 @@ errout:
 	return ERR_PTR(res);
 }
 
+void f2fs_kfree_put_link(struct dentry *dentry, struct nameidata *nd,
+		void *cookie)
+{
+	char *s = nd_get_link(nd);
+	if (!IS_ERR(s))
+		kfree(s);
+}
+
 const struct inode_operations f2fs_encrypted_symlink_inode_operations = {
 	.readlink       = generic_readlink,
 	.follow_link    = f2fs_encrypted_follow_link,
-	.put_link       = kfree_put_link,
+	.put_link       = f2fs_kfree_put_link,
 	.getattr	= f2fs_getattr,
 	.setattr	= f2fs_setattr,
 	.setxattr	= generic_setxattr,

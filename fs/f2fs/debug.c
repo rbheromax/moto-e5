@@ -33,11 +33,11 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	int i;
 
 	/* validation check of the segment numbers */
-	si->hit_largest = atomic64_read(&sbi->read_hit_largest);
-	si->hit_cached = atomic64_read(&sbi->read_hit_cached);
-	si->hit_rbtree = atomic64_read(&sbi->read_hit_rbtree);
+	si->hit_largest = atomic_read(&sbi->read_hit_largest);
+	si->hit_cached = atomic_read(&sbi->read_hit_cached);
+	si->hit_rbtree = atomic_read(&sbi->read_hit_rbtree);
 	si->hit_total = si->hit_largest + si->hit_cached + si->hit_rbtree;
-	si->total_ext = atomic64_read(&sbi->total_hit_ext);
+	si->total_ext = atomic_read(&sbi->total_hit_ext);
 	si->ext_tree = sbi->total_ext_tree;
 	si->ext_node = atomic_read(&sbi->total_ext_node);
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
@@ -189,7 +189,6 @@ get_cache:
 	si->cache_mem += NM_I(sbi)->dirty_nat_cnt *
 					sizeof(struct nat_entry_set);
 	si->cache_mem += si->inmem_pages * sizeof(struct inmem_pages);
-	si->cache_mem += sbi->n_dirty_dirs * sizeof(struct inode_entry);
 	for (i = 0; i <= UPDATE_INO; i++)
 		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
 	si->cache_mem += sbi->total_ext_tree * sizeof(struct extent_tree);
@@ -283,12 +282,12 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - node blocks : %d (%d)\n", si->node_blks,
 				si->bg_node_blks);
 		seq_puts(s, "\nExtent Cache:\n");
-		seq_printf(s, "  - Hit Count: L1-1:%llu L1-2:%llu L2:%llu\n",
+		seq_printf(s, "  - Hit Count: L1-1:%d L1-2:%d L2:%d\n",
 				si->hit_largest, si->hit_cached,
 				si->hit_rbtree);
-		seq_printf(s, "  - Hit Ratio: %llu%% (%llu / %llu)\n",
+		seq_printf(s, "  - Hit Ratio: %d%% (%d / %d)\n",
 				!si->total_ext ? 0 :
-				div64_u64(si->hit_total * 100, si->total_ext),
+				(si->hit_total * 100) / si->total_ext,
 				si->hit_total, si->total_ext);
 		seq_printf(s, "  - Inner Struct Count: tree: %d, node: %d\n",
 				si->ext_tree, si->ext_node);
@@ -352,7 +351,6 @@ static int stat_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations stat_fops = {
-	.owner = THIS_MODULE,
 	.open = stat_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -379,10 +377,10 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	si->sbi = sbi;
 	sbi->stat_info = si;
 
-	atomic64_set(&sbi->total_hit_ext, 0);
-	atomic64_set(&sbi->read_hit_rbtree, 0);
-	atomic64_set(&sbi->read_hit_largest, 0);
-	atomic64_set(&sbi->read_hit_cached, 0);
+	atomic_set(&sbi->total_hit_ext, 0);
+	atomic_set(&sbi->read_hit_rbtree, 0);
+	atomic_set(&sbi->read_hit_largest, 0);
+	atomic_set(&sbi->read_hit_cached, 0);
 
 	atomic_set(&sbi->inline_xattr, 0);
 	atomic_set(&sbi->inline_inode, 0);

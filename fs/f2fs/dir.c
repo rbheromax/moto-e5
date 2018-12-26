@@ -16,6 +16,10 @@
 #include "acl.h"
 #include "xattr.h"
 
+#ifndef LOOKUP_NOCASE
+#define LOOKUP_NOCASE	0
+#endif
+
 static unsigned long dir_blocks(struct inode *inode)
 {
 	return ((unsigned long long) (i_size_read(inode) + PAGE_CACHE_SIZE - 1))
@@ -126,33 +130,23 @@ struct f2fs_dir_entry *find_target_dentry(struct f2fs_filename *fname,
 
 		de = &d->dentry[bit_pos];
 
-		if (de->hash_code != namehash)
-			goto not_match;
-
+		/* encrypted case */
 		de_name.name = d->filename[bit_pos];
 		de_name.len = le16_to_cpu(de->name_len);
 
-#ifdef CONFIG_F2FS_FS_ENCRYPTION
-		if (unlikely(!name->name)) {
-			if (fname->usr_fname->name[0] == '_') {
-				if (de_name.len > 32 &&
-					!memcmp(de_name.name + ((de_name.len - 17) & ~15),
-						fname->crypto_buf.name + 8, 16))
-					goto found;
-				goto not_match;
-			}
-			name->name = fname->crypto_buf.name;
-			name->len = fname->crypto_buf.len;
-		}
-#endif
-		if (de_name.len == name->len &&
-				!memcmp(de_name.name, name->name, name->len)) {
+		/* show encrypted name */
+		if (fname->hash) {
+			if (de->hash_code == fname->hash)
+				goto found;
+		} else if (de_name.len == name->len &&
+			de->hash_code == namehash &&
+			!memcmp(de_name.name, name->name, name->len)) {
 			goto found;
 		} else if (flags & LOOKUP_NOCASE && de_name.len == name->len &&
 			!strncasecmp(de_name.name, name->name, name->len)) {
 			goto found;
 		}
-not_match:
+
 		if (max_slots && max_len > *max_slots)
 			*max_slots = max_len;
 		max_len = 0;
@@ -187,7 +181,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	int max_slots;
 	f2fs_hash_t namehash;
 
-	namehash = f2fs_dentry_hash(&name, fname);
+	namehash = f2fs_dentry_hash(&name);
 
 	f2fs_bug_on(F2FS_I_SB(dir), level > MAX_DIR_HASH_DEPTH);
 
@@ -247,7 +241,7 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir, struct qstr *child,
 		return NULL;
 
 	if (f2fs_has_inline_dentry(dir)) {
-		de = find_in_inline_dir(dir, &fname, res_page);
+		de = find_in_inline_dir(dir, &fname, res_page, flags);
 		goto out;
 	}
 
@@ -275,7 +269,7 @@ struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
 	if (f2fs_has_inline_dentry(dir))
 		return f2fs_parent_inline_dir(dir, p);
 
-	page = get_lock_data_page(dir, 0, false);
+	page = get_lock_data_page(dir, 0);
 	if (IS_ERR(page))
 		return NULL;
 
@@ -523,7 +517,7 @@ void f2fs_update_dentry(nid_t ino, umode_t mode, struct f2fs_dentry_ptr *d,
 	de->ino = cpu_to_le32(ino);
 	set_de_type(de, mode);
 	for (i = 0; i < slots; i++)
-		test_and_set_bit_le(bit_pos + i, (void *)d->bitmap);
+		__set_bit_le(bit_pos + i, (void *)d->bitmap);
 }
 
 /*
@@ -564,7 +558,7 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 
 	level = 0;
 	slots = GET_DENTRY_SLOTS(new_name.len);
-	dentry_hash = f2fs_dentry_hash(&new_name, NULL);
+	dentry_hash = f2fs_dentry_hash(&new_name);
 
 	current_depth = F2FS_I(dir)->i_current_depth;
 	if (F2FS_I(dir)->chash == dentry_hash) {
@@ -721,7 +715,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 	dentry_blk = page_address(page);
 	bit_pos = dentry - dentry_blk->dentry;
 	for (i = 0; i < slots; i++)
-		clear_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
+		test_and_clear_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
 
 	/* Let's check and deallocate this dentry page */
 	bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
@@ -757,7 +751,7 @@ bool f2fs_empty_dir(struct inode *dir)
 		return f2fs_empty_inline_dir(dir);
 
 	for (bidx = 0; bidx < nblock; bidx++) {
-		dentry_page = get_lock_data_page(dir, bidx, false);
+		dentry_page = get_lock_data_page(dir, bidx);
 		if (IS_ERR(dentry_page)) {
 			if (PTR_ERR(dentry_page) == -ENOENT)
 				continue;
@@ -871,7 +865,7 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 				min(npages - n, (pgoff_t)MAX_DIR_RA_PAGES));
 
 	for (; n < npages; n++) {
-		dentry_page = get_lock_data_page(inode, n, false);
+		dentry_page = get_lock_data_page(inode, n);
 		if (IS_ERR(dentry_page))
 			continue;
 

@@ -320,7 +320,7 @@ void f2fs_evict_inode(struct inode *inode)
 		commit_inmem_pages(inode, true);
 
 	trace_f2fs_evict_inode(inode);
-	truncate_inode_pages_final(&inode->i_data);
+	truncate_inode_pages(&inode->i_data, 0);
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
